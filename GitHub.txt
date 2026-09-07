@@ -1,0 +1,941 @@
+Build a production-ready, mobile-first web application called Zip2Git.
+
+Zip2Git is a minimalist web tool that lets users select a ZIP file from their phone or computer and synchronize its project files with an existing GitHub repository and branch.
+
+The core purpose is:
+
+ZIP → Extract → Compare → Preview Changes → Sync → GitHub
+
+The website must be focused on one task only. Do not build a dashboard, account system, cloud storage, or unnecessary features.
+
+Core Requirements
+
+Build the website as a modern responsive web application.
+
+Recommended stack:
+
+- React
+- TypeScript
+- Vite
+- Modern CSS or Tailwind CSS
+- GitHub REST API
+- Browser File System APIs where appropriate
+- JSZip or an equivalent browser-compatible ZIP library
+
+The website must work without a custom backend.
+
+All ZIP processing must happen locally in the user's browser.
+
+GitHub API requests must be made directly from the browser over HTTPS.
+
+Do not create or require a custom server, database, Firebase Functions, Supabase backend, or external API proxy for the core functionality.
+
+Main User Flow
+
+The complete user flow should be:
+
+1. Open Zip2Git.
+2. Enter GitHub repository URL.
+3. Enter branch name.
+4. Enter GitHub Personal Access Token.
+5. Enter commit message.
+6. Select a ZIP file.
+7. Process the ZIP locally.
+8. Validate the repository and branch.
+9. Read the existing repository tree.
+10. Compare ZIP contents with the repository.
+11. Show a change preview.
+12. User confirms synchronization.
+13. Create the required Git objects/commit using GitHub's API.
+14. Update the selected branch.
+15. Show the successful commit.
+16. Allow the user to open the commit on GitHub.
+
+UI Philosophy
+
+The UI must be extremely minimalist.
+
+The user should understand the app within a few seconds.
+
+Avoid:
+
+- Sidebar
+- Dashboard
+- Login
+- User accounts
+- Profiles
+- Unnecessary navigation
+- Large illustrations
+- Gradient backgrounds
+- Excessive cards
+- Decorative animations
+- Social features
+- Unnecessary settings
+- Cloud file storage
+
+Use a clean developer-tool aesthetic.
+
+The interface should look excellent on both a phone and desktop.
+
+Homepage
+
+The homepage should contain the complete workflow.
+
+Top:
+
+Zip2Git
+
+Small subtitle:
+
+Sync a ZIP project directly to GitHub.
+
+Then a compact form.
+
+Repository URL
+
+Label:
+
+Repository URL
+
+Placeholder:
+
+https://github.com/username/repository
+
+Accept:
+
+https://github.com/username/repository
+
+Also normalize:
+
+https://github.com/username/repository.git
+
+Only allow GitHub repository URLs.
+
+Extract:
+
+- owner
+- repository
+
+Do not allow arbitrary external URLs.
+
+Branch
+
+Label:
+
+Branch
+
+Default:
+
+main
+
+Allow the user to type any branch name.
+
+Before synchronization, verify that the branch exists.
+
+Personal Access Token
+
+Label:
+
+GitHub Personal Access Token
+
+Use a password-style input.
+
+Include a show/hide button.
+
+Small helper text:
+
+Your token is used only for this operation and is not stored by Zip2Git.
+
+Do not save the token in:
+
+- localStorage
+- sessionStorage
+- IndexedDB
+- cookies
+- URL parameters
+- analytics
+- browser history through navigation
+- application logs
+
+Keep it only in runtime memory.
+
+Do not send it to any server other than GitHub's official API.
+
+Never include it in console logs or error messages.
+
+Commit Message
+
+Label:
+
+Commit message
+
+Default:
+
+Update project files
+
+Allow the user to edit it.
+
+ZIP File
+
+Use a large but minimalist drop/select area.
+
+Text:
+
+Select ZIP file
+
+Secondary text:
+
+Drop a ZIP here or choose a file
+
+The browser must allow the user to select a ".zip" file from a mobile device.
+
+Do not require folder upload.
+
+Show selected file information:
+
+update.zip
+18.4 MB
+42 files
+
+Main Button
+
+Primary button:
+
+Sync to GitHub
+
+Disable it until all required fields are valid.
+
+ZIP Processing
+
+Process the ZIP completely in the browser.
+
+Do not upload the original ZIP to a server.
+
+Use a reliable browser ZIP library such as JSZip.
+
+Extract files into memory or browser-managed temporary structures.
+
+Do not write extracted files to a public server.
+
+Preserve relative paths.
+
+Example ZIP:
+
+app/
+src/
+build.gradle
+settings.gradle
+
+must be synchronized to:
+
+repository root/app/
+repository root/src/
+repository root/build.gradle
+repository root/settings.gradle
+
+ZIP Security
+
+Treat ZIP files as untrusted input.
+
+Protect against ZIP Slip/path traversal.
+
+Reject paths containing:
+
+../
+
+Reject absolute paths.
+
+Normalize paths before processing.
+
+Never allow extracted files to escape the application's intended temporary processing area.
+
+Reject invalid paths.
+
+Set reasonable limits for:
+
+- total uncompressed size
+- number of files
+- individual file size
+
+Show a clear error if limits are exceeded.
+
+Never execute files from the ZIP.
+
+Special Git Directory Handling
+
+If the ZIP contains:
+
+.git/
+
+do not synchronize the ".git" directory.
+
+Git metadata from the ZIP must never overwrite the repository's actual Git metadata.
+
+The app should also ignore other unsafe filesystem metadata.
+
+Root Folder Detection
+
+Handle common ZIP structures intelligently.
+
+Example:
+
+project/
+app/
+src/
+build.gradle
+
+If the ZIP was clearly created by compressing the project folder itself, detect the outer folder and avoid unnecessarily creating:
+
+repository/project/app/
+
+when the intended result is:
+
+repository/app/
+
+If the ZIP contains multiple meaningful top-level files/folders, preserve the structure.
+
+When automatic detection is ambiguous, show a simple root selection step.
+
+Example:
+
+Detected ZIP root:
+
+○ project/
+○ ZIP root
+
+Continue
+
+Keep this interface simple.
+
+GitHub Validation
+
+Before making any changes:
+
+1. Validate repository URL.
+2. Verify repository exists.
+3. Verify token authentication.
+4. Verify token has permission to modify the repository.
+5. Verify the selected branch exists.
+6. Read the current branch commit.
+7. Read the current Git tree.
+
+If validation fails, do not modify anything.
+
+GitHub Sync Behavior
+
+This is the most important part of the application.
+
+Zip2Git must behave like a project synchronization tool.
+
+The target state is:
+
+GitHub repository tree = ZIP project tree
+
+For each file:
+
+Added
+
+File exists in ZIP but not in GitHub.
+
+Action:
+
+Add file.
+
+Modified
+
+File exists in both places but the contents differ.
+
+Action:
+
+Update file.
+
+Unchanged
+
+File exists in both places and contents are identical.
+
+Action:
+
+Do nothing.
+
+Deleted
+
+File exists in GitHub but is not present in the ZIP.
+
+Action:
+
+Delete it.
+
+This means if the user uploads a newer version of their project, files removed from the new ZIP should also be removed from the selected repository branch.
+
+Do not leave obsolete project files behind.
+
+Important Scope Rule
+
+For the first version, the ZIP represents the entire repository root.
+
+Therefore:
+
+If a file is absent from the ZIP, it is considered removed and should be deleted from the repository.
+
+However, protect important GitHub repository metadata where necessary.
+
+Do not delete:
+
+.git
+
+GitHub's internal Git metadata is never directly manipulated as a normal project file.
+
+Change Comparison
+
+Compare actual file contents.
+
+Do not rely only on filenames.
+
+For text files, binary files, images, fonts, archives, etc., preserve the original bytes.
+
+Do not alter:
+
+- encoding
+- line endings
+- binary contents
+
+unless explicitly required by GitHub's API format.
+
+Calculate hashes locally where useful to avoid unnecessary updates.
+
+Change Preview
+
+After comparison, show a clean preview.
+
+Example:
+
+Changes
+
+12 Added
+8 Modified
+3 Deleted
+27 Unchanged
+
+The main action:
+
+Sync changes
+
+The user can expand each category.
+
+Example:
+
+Added
+
++ src/NewFile.ts
++ app/NewActivity.kt
+
+Modified
+
+~ package.json
+~ src/App.tsx
+
+Deleted
+
+- old.js
+- legacy/config.json
+
+Unchanged files should be collapsed by default.
+
+Do not display file contents unless needed.
+
+Delete Confirmation
+
+Deletion must never happen silently.
+
+If files will be deleted, show a confirmation:
+
+3 files will be deleted from the repository because they are not present in this ZIP.
+
+Cancel
+
+Continue Sync
+
+If there are no deletions, no destructive warning is required.
+
+GitHub Commit Implementation
+
+Use GitHub's official Git database REST API where appropriate.
+
+Prefer an efficient tree/blob/commit workflow rather than creating one commit per file.
+
+Preferred workflow:
+
+1. Get current branch reference.
+2. Get current commit.
+3. Get current tree.
+4. Compare current repository tree with ZIP.
+5. Create blobs for new/modified files.
+6. Build the new Git tree.
+7. Represent deleted files appropriately.
+8. Create one new commit.
+9. Set the selected branch reference to the new commit.
+10. Verify the branch update.
+
+The result should normally be one logical synchronization commit.
+
+Do not rewrite Git history.
+
+Previous commits must remain available.
+
+Binary Files
+
+Support binary files correctly.
+
+Examples:
+
+- PNG
+- JPG
+- GIF
+- WebP
+- fonts
+- APK files
+- ZIP files
+- other binary assets
+
+Do not decode binary files as UTF-8 text.
+
+Use GitHub's API encoding requirements correctly.
+
+Large Repository Handling
+
+Design the implementation to handle reasonably large repositories.
+
+Do not blindly download unnecessary file contents.
+
+Use Git tree information to determine which files need to be fetched.
+
+Only retrieve existing file contents when needed for comparison.
+
+Be aware of GitHub REST API response and file-size limitations.
+
+If a file cannot safely be synchronized through the selected API method, show a clear error instead of silently corrupting it.
+
+Repository Race Protection
+
+Prevent accidental overwrites if the repository changes during synchronization.
+
+The process should remember the branch's starting commit SHA.
+
+Before updating the branch, verify that the branch still points to the same expected commit.
+
+If it has changed:
+
+Do not overwrite the new remote commit.
+
+Show:
+
+Repository changed while syncing
+
+No changes were pushed. Please sync again.
+
+Progress UI
+
+Do not freeze the page.
+
+Show a simple progress state.
+
+Examples:
+
+Preparing ZIP...
+
+Extracting files...
+
+Checking GitHub repository...
+
+Comparing files...
+
+Preparing changes...
+
+Creating commit...
+
+Updating branch...
+
+Done.
+
+If possible, show useful counts:
+
+42 files processed
+
+Do not create an overly complicated progress dashboard.
+
+Success Screen
+
+After successful synchronization:
+
+✓ Sync complete
+
+Example:
+
+42 files synchronized
+
+12 added
+8 modified
+3 deleted
+
+Commit:
+
+Update project files
+
+Short SHA:
+
+a8f31c2
+
+Buttons:
+
+View on GitHub
+
+Sync another ZIP
+
+View on GitHub should open the resulting commit page.
+
+Do not expose the user's token in the URL.
+
+Error Handling
+
+Never show raw stack traces to users.
+
+Convert known errors into simple messages.
+
+Examples:
+
+Invalid repository URL
+
+Repository not found
+
+Invalid or expired GitHub token
+
+You do not have permission to push to this repository
+
+Branch not found
+
+ZIP file is invalid
+
+ZIP contains an unsafe path
+
+ZIP is too large
+
+File is too large for GitHub
+
+GitHub API rate limit reached
+
+Repository changed while syncing
+
+Network connection lost
+
+Sync cancelled
+
+Unknown GitHub error
+
+Provide a small optional "Technical details" expandable section for useful non-sensitive diagnostics.
+
+Never show:
+
+Authorization headers
+PAT
+private credentials
+
+Network Failure
+
+If the network disappears during synchronization:
+
+- stop safely
+- do not falsely report success
+- do not leave the UI stuck
+- explain that the sync could not be completed
+
+If the branch update has not happened, allow the user to retry.
+
+Do not automatically retry destructive operations indefinitely.
+
+Token Handling
+
+The PAT is highly sensitive.
+
+Never:
+
+- store it permanently
+- put it in localStorage
+- put it in sessionStorage
+- put it in IndexedDB
+- put it in cookies
+- put it in URL parameters
+- send it to analytics
+- send it to your own server
+- print it in console logs
+- include it in crash reports
+
+Only use it for direct GitHub API requests.
+
+Clear the runtime reference after:
+
+- successful sync
+- failed sync
+- cancellation
+- leaving the workflow where appropriate
+
+The UI must never display the complete token.
+
+No Backend
+
+The application must function without a custom backend.
+
+Architecture:
+
+Browser
+↓
+ZIP processing
+↓
+GitHub REST API
+↓
+GitHub repository
+
+Do not create:
+
+- Express server
+- Node backend
+- Firebase Functions
+- Supabase backend
+- database
+- custom token proxy
+
+The production deployment should be a static web application.
+
+Deployment Compatibility
+
+The application should be deployable to static hosting such as:
+
+- Firebase Hosting
+- Vercel
+- Netlify
+- GitHub Pages where compatible
+
+Do not require server-side rendering.
+
+Configure SPA routing correctly if routes are used.
+
+Keep the initial version simple enough that the homepage can function as the primary route.
+
+Privacy Page
+
+Create a small Privacy page or modal.
+
+Explain accurately:
+
+- ZIP files are processed locally in the browser.
+- The app does not upload ZIP files to Zip2Git servers.
+- GitHub requests go directly to GitHub.
+- The PAT is not permanently stored.
+- The app does not sell or share the token.
+- Temporary ZIP processing data is discarded after the operation.
+- The user controls which repository and branch are modified.
+
+Do not make claims that are not true in the implementation.
+
+About Section
+
+Keep it minimal.
+
+Zip2Git
+
+Sync ZIP projects directly to GitHub from your browser.
+
+Version 1.0
+
+GitHub API powered.
+
+Do not add unnecessary marketing copy.
+
+Responsive Design
+
+Mobile is the primary target.
+
+The website must work comfortably on:
+
+- Android Chrome
+- iPhone Safari
+- Desktop Chrome
+- Desktop Edge
+- Desktop Firefox
+- Safari
+
+The main form should fit naturally on a phone screen.
+
+Use large touch targets.
+
+Avoid horizontal scrolling.
+
+The ZIP picker must work properly with mobile browsers.
+
+Accessibility
+
+Use:
+
+- semantic HTML
+- proper labels
+- keyboard navigation
+- visible focus states
+- accessible buttons
+- appropriate contrast
+- aria labels where required
+
+Do not rely only on color to communicate errors or status.
+
+Visual Design
+
+Use a restrained visual system.
+
+Suggested style:
+
+- clean white/light background
+- dark text
+- subtle borders
+- modest corner radius
+- one accent color
+- clean typography
+- generous but not excessive spacing
+
+Dark mode should follow the system preference.
+
+Avoid flashy developer-tool aesthetics.
+
+The product should feel trustworthy and simple.
+
+Page Structure
+
+Keep the website small.
+
+Primary page:
+
+Home / Sync
+
+Secondary:
+
+Privacy
+
+Optional:
+
+About
+
+No dashboard.
+
+No login.
+
+No user profile.
+
+No account creation.
+
+No history page.
+
+No cloud storage.
+
+Browser Compatibility
+
+Check browser support for:
+
+- File API
+- Blob
+- ArrayBuffer
+- Fetch
+- Web Crypto where useful
+- ZIP processing library
+
+If a required browser capability is unavailable, show a clear compatibility message.
+
+GitHub API Security
+
+Use the Authorization header only for GitHub API requests.
+
+Never put the PAT in query parameters.
+
+Use:
+
+Authorization: Bearer <token>
+
+or the current GitHub-recommended authentication format supported by the selected API.
+
+Set appropriate Accept headers.
+
+Do not expose sensitive headers in error messages.
+
+Content Security
+
+Do not load unnecessary third-party scripts.
+
+Do not add advertising SDKs.
+
+Do not add analytics that could capture repository URLs, tokens, file names, or file contents.
+
+Keep external dependencies minimal.
+
+Code Quality
+
+Create a clean project structure.
+
+Separate:
+
+- UI components
+- GitHub API client
+- ZIP processor
+- comparison engine
+- sync engine
+- validation utilities
+- security utilities
+- types
+- application state
+
+Do not put the complete application inside App.tsx.
+
+Use TypeScript types throughout.
+
+Avoid any where possible.
+
+Handle asynchronous operations safely.
+
+Cancel stale requests when appropriate.
+
+Prevent duplicate submissions.
+
+Important Implementation Detail
+
+Do not implement fake synchronization.
+
+The Sync button must actually perform the GitHub operation.
+
+Do not use placeholder GitHub responses.
+
+Do not simulate successful commits.
+
+Do not leave core functionality as TODO.
+
+The finished application must be functional.
+
+Final Product Goal
+
+Zip2Git should feel like this:
+
+Open website
+→ paste repository
+→ enter branch
+→ enter GitHub token
+→ enter commit message
+→ select ZIP
+→ see detected files
+→ see Added / Modified / Deleted changes
+→ confirm
+→ Sync to GitHub
+→ one commit created
+→ done.
+
+The entire experience should remain minimalist.
+
+The product's identity is:
+
+Zip2Git
+ZIP → GitHub, directly from your browser.
+
+Do not add features that distract from this core workflow.
