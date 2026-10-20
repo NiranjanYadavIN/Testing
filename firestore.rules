@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // Collection: users
+    // User profile, subscription status, remaining credits, usage limit
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+        (!('isPremium' in request.resource.data) || request.resource.data.isPremium == false) &&
+        (!('creditsRemaining' in request.resource.data) || request.resource.data.creditsRemaining <= 10000);
+      allow update: if isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isPremium', 'creditsRemaining', 'dailyLimitChars', 'monthlyLimitChars']);
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // Collection: voices
+    // Central catalog for ONNX voice models, Hugging Face download URLs, samples
+    // ===============================================================
+    match /voices/{voiceId} {
+      allow read: if true; // Anyone can read voice catalog
+      allow write: if false; // Only server/admin can update catalog
+    }
+
+    // ===============================================================
+    // Collection: languages
+    // Single collection of all supported TTS languages
+    // ===============================================================
+    match /languages/{languageId} {
+      allow read: if true; // Anyone can view language list
+      allow write: if false; // Only server/admin can update languages
+    }
+
+    // ===============================================================
+    // Collection: settings
+    // App configuration & speech generator character limits per request/daily
+    // ===============================================================
+    match /settings/{settingId} {
+      allow read: if true; // Anyone can read global settings
+      allow write: if false; // Only server/admin can update global settings
+    }
+
+    // ===============================================================
+    // Collection: generations
+    // Speech synthesis generation logs and history
+    // ===============================================================
+    match /generations/{generationId} {
+      allow read, write: if isAuthenticated() &&
+        (resource == null || resource.data.userId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.userId == request.auth.uid);
+    }
+  }
+}
